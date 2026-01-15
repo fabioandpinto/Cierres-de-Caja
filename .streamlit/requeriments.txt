@@ -2,5 +2,6 @@
 streamlit
 pandas
 pyodbc
+pymssql
 pandas-datareader
 prophet
