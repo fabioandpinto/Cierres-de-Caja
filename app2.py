@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import pyodbc
+import pymssql
 import math
 import io
 import datetime
@@ -38,7 +38,7 @@ def init_connection():
             PWD={creds['PWD']};
             TrustServerCertificate=yes;
         """
-        return pyodbc.connect(connection_string)
+        return pymssql.connect(connection_string)
     except Exception as e:
         st.error(f"Error conectando a la base de datos: {e}")
         st.stop()
