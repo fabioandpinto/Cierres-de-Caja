@@ -5,3 +5,4 @@ pyodbc
 pymssql
 pandas-datareader
 prophet
+xlsxwriter
