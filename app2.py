@@ -86,7 +86,7 @@ def init_connection():
 conn = init_connection()
 
 # --- OBTENER OPCIONES DE FILTRO ---
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=5600)
 def get_filter_options():
     query = "SELECT DISTINCT [REGIONAL], [ESTACIONAMIENTO] FROM recaudo.vw_consolidado_cierres_adjuntos ORDER BY [REGIONAL], [ESTACIONAMIENTO]"
     df = pd.read_sql(query, conn)
