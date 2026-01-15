@@ -11,6 +11,46 @@ st.set_page_config(
     page_icon="💰",
     layout="wide"
 )
+# ---------------------------------------------------------
+# 🔒
+# ---------------------------------------------------------
+def check_password():
+    """Retorna `True` si el usuario tiene la contraseña correcta."""
+
+    def password_entered():
+        """Verifica si la contraseña ingresada coincide con la de secrets."""
+        if st.session_state["password"] == st.secrets["general"]["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  
+        else:
+            st.session_state["password_correct"] = False
+
+    # 1. Si ya está autenticado, retornar True
+    if st.session_state.get("password_correct", False):
+        return True
+
+    # 2. Interfaz de Login
+    # Usamos columnas para centrar el cuadro de login
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown("<h2 style='text-align: center;'>🔐 Acceso Restringido</h2>", unsafe_allow_html=True)
+        st.info("Por favor ingresa la contraseña administrativa para acceder al Dashboard de Recaudo.")
+        
+        st.text_input(
+            "Contraseña", 
+            type="password", 
+            on_change=password_entered, 
+            key="password"
+        )
+        
+        if "password_correct" in st.session_state:
+            st.error("😕 Contraseña incorrecta")
+
+    return False
+
+if not check_password():
+    st.stop()  
 
 # CSS para alineación visual de los controles
 st.markdown("""
