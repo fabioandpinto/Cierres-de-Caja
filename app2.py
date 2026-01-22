@@ -309,101 +309,6 @@ with col_info:
 
 st.write("") 
 
-# --- SECCIÓN INFERIOR: TABLA DE RESULTADOS ---
-if total_rows > 0:
-    
-    # 1. RENOMBRADO INTELIGENTE DE COLUMNAS
-    # Esto soluciona el problema de que los nombres no coincidan (mayúsculas/minúsculas/typos)
-    # Buscamos la columna que contenga ciertas palabras y la estandarizamos.
-    rename_map = {}
-    for col in df_results.columns:
-        col_lower = col.lower()
-        # Detectar Consignación (incluso con el error 'Consignaicon')
-        if 'url' in col_lower and 'consigna' in col_lower:
-            rename_map[col] = "URL_CONSIGNACION"
-        # Detectar Cierre Sistema
-        elif 'url' in col_lower and 'cierre' in col_lower:
-            rename_map[col] = "URL_CIERRE"
-        # Detectar Formulario
-        elif 'url' in col_lower and 'formulario' in col_lower:
-            rename_map[col] = "URL_FORMULARIO"
-        # Detectar Otros
-        elif 'url' in col_lower and 'otros' in col_lower:
-            rename_map[col] = "URL_OTROS"
-            
-    if rename_map:
-        df_results = df_results.rename(columns=rename_map)
-
-    # 2. LIMPIEZA Y PREPARACIÓN
-    # Reemplazamos vacíos por None para que no salgan enlaces rotos
-    df_results = df_results.replace('', None)
-    
-    # Creamos la columna auxiliar con el texto del botón
-    df_results['texto_boton'] = "📂 Abrir adjunto"
-
-    # 3. CONFIGURACIÓN DEL ENLACE
-    # Le decimos a Streamlit: "Usa la columna 'texto_boton' como etiqueta visible"
-    link_config = st.column_config.LinkColumn(
-        "Soporte", 
-        display_text="Ver", 
-        help="Clic para ver el documento",
-        width="small"
-    )
-    
-
-    
-    st.dataframe(
-        df_results,
-        use_container_width=True,
-        hide_index=True,
-        height=600,
-        column_config={
-            # Columnas estándar
-            "ID CIERRE": st.column_config.TextColumn("ID", width="small"),
-            "FECHA": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
-            
-            # --- APLICAMOS LA CONFIGURACIÓN A LOS NOMBRES ESTANDARIZADOS ---
-            "URL_CONSIGNACION": st.column_config.LinkColumn(
-                    "Soporte Consignacion", 
-                    display_text="Ver", 
-                    help="Clic para ver el documento",
-                    width="medium"
-                ),
-            "URL_CIERRE": st.column_config.LinkColumn(
-        "Soporte Cierre", 
-        display_text="Ver", 
-        help="Clic para ver el documento",
-        width="medium"
-    ),
-            "URL_FORMULARIO": st.column_config.LinkColumn(
-        "Soporte Formulario", 
-        display_text="Ver", 
-        help="Clic para ver el documento",
-        width="medium"
-    ),
-            "URL_OTROS": st.column_config.LinkColumn(
-        "Soporte Otros Medios", 
-        display_text="Ver", 
-        help="Clic para ver el documento",
-        width="medium"
-    ),
-            
-            # --- OCULTAMOS LAS COLUMNAS AUXILIARES (Usando None) ---
-            "texto_boton": None,
-            
-            # Si quieres ocultar las columnas originales de nombres de archivo si existen:
-            "nombre_consignacion": None,
-            "nombre_cierre_sistema": None, 
-            # (Agrega aquí cualquier otra columna que quieras esconder poniendo: "Nombre": None)
-
-            # Formatos de dinero (Asegúrate que coincidan con tus nombres de columna de dinero)
-            "TOTAL RECAUDADO DIA": st.column_config.NumberColumn("Total Día", format="$%.2f"),
-            "VALOR CONSIGNADO": st.column_config.NumberColumn("Consignado", format="$%.2f"),
-        }
-    )
-else:
-    st.warning("No se encontraron registros con los filtros aplicados.")
-
 # --- SECCIÓN INFERIOR: TABLA DE RESULTADOS CON REPORTES ---
 if total_rows > 0:
     
@@ -493,7 +398,7 @@ if total_rows > 0:
                         # Guardar en BD
                         exito = save_report(id_afectado, tipo_solicitud, comentario)
                         if exito:
-                            st.success("✅ Reporte enviado correctamente al equipo administrativo.")
+                            st.success("✅ Reporte enviado correctamente al área de recaudos.")
                             time.sleep(2) # Dar tiempo para leer antes de recargar
                             st.rerun()
 
