@@ -3,6 +3,7 @@ import pandas as pd
 import pyodbc
 import math
 import io
+import time
 import datetime
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
@@ -85,10 +86,29 @@ def init_connection():
 
 conn = init_connection()
 
+
+# --- Funcion de reporte de cierre 
+
+def save_report(id_cierre, tipo, comentario):
+    """Guarda el reporte en la base de datos de novedades."""
+    query = """
+        INSERT INTO recaudo.tbl_reportes_novedades 
+        (id_cierre_afectado, tipo_solicitud, comentario)
+        VALUES (?, ?, ?)
+    """
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query, (id_cierre, tipo, comentario))
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"Error guardando el reporte: {e}")
+        return False
+
 # --- OBTENER OPCIONES DE FILTRO ---
 @st.cache_data(ttl=5600)
 def get_filter_options():
-    query = "SELECT DISTINCT [REGIONAL], [ESTACIONAMIENTO] FROM recaudo.vw_consolidado_cierres_adjuntos ORDER BY [REGIONAL], [ESTACIONAMIENTO]"
+    query = "SELECT DISTINCT [REGIONAL], [ESTACIONAMIENTO] FROM recaudo.vw_consolidado_cierres_adjuntos"
     df = pd.read_sql(query, conn)
     return df
 
@@ -381,5 +401,101 @@ if total_rows > 0:
             "VALOR CONSIGNADO": st.column_config.NumberColumn("Consignado", format="$%.2f"),
         }
     )
+else:
+    st.warning("No se encontraron registros con los filtros aplicados.")
+
+# --- SECCIÓN INFERIOR: TABLA DE RESULTADOS CON REPORTES ---
+if total_rows > 0:
+    
+    # 1. PREPARACIÓN DE DATOS (Tu código de renombramiento y limpieza)
+    rename_map = {}
+    for col in df_results.columns:
+        col_lower = col.lower()
+        if 'url' in col_lower and 'consigna' in col_lower: rename_map[col] = "URL_CONSIGNACION"
+        elif 'url' in col_lower and 'cierre' in col_lower: rename_map[col] = "URL_CIERRE"
+        elif 'url' in col_lower and 'formulario' in col_lower: rename_map[col] = "URL_FORMULARIO"
+        elif 'url' in col_lower and 'otros' in col_lower: rename_map[col] = "URL_OTROS"
+            
+    if rename_map:
+        df_results = df_results.rename(columns=rename_map)
+
+    df_results = df_results.replace('', None)
+    df_results['texto_boton'] = "📂 Abrir adjunto"
+
+    link_config = st.column_config.LinkColumn("Soporte", display_text="texto_boton", width="small")
+    
+    # 2. TABLA INTERACTIVA (CON SELECCIÓN)
+    st.info("💡 Haz clic en la casilla a la izquierda de una fila para reportar una novedad sobre ese registro.")
+    
+    # event: Captura qué fila seleccionó el usuario
+    event = st.dataframe(
+        df_results,
+        use_container_width=True,
+        hide_index=True,
+        height=500,
+        on_select="rerun", # <--- IMPORTANTE: Recarga la app al seleccionar
+        selection_mode="single-row", # Solo permitir seleccionar 1 a la vez
+        column_config={
+            "ID CIERRE": st.column_config.TextColumn("ID", width="small"),
+            "FECHA": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+            "URL_CONSIGNACION": link_config,
+            "URL_CIERRE": link_config,
+            "URL_FORMULARIO": link_config,
+            "URL_OTROS": link_config,
+            "texto_boton": None,
+            # Oculta las columnas originales de nombres si existen
+            "nombre_consignacion": None, "nombre_cierre_sistema": None, 
+            "TOTAL RECAUDADO DIA": st.column_config.NumberColumn("Total Día", format="$%.2f"),
+            "VALOR CONSIGNADO": st.column_config.NumberColumn("Consignado", format="$%.2f"),
+        }
+    )
+
+    # 3. LÓGICA DEL FORMULARIO DE REPORTE
+    # Verificamos si alguien seleccionó una fila
+    if len(event.selection.rows) > 0:
+        # Obtenemos el índice de la fila seleccionada
+        selected_index = event.selection.rows[0]
+        # Obtenemos los datos de esa fila usando iloc
+        selected_row = df_results.iloc[selected_index]
+        
+        # Obtenemos el ID del cierre (asegúrate que el nombre de columna coincida con tu vista)
+        id_afectado = selected_row["ID CIERRE"] 
+        fecha_afectada = selected_row["FECHA"]
+        estacionamiento_afectado = selected_row.get("ESTACIONAMIENTO", "Estacionamiento")
+
+        # --- MOSTRAR FORMULARIO FLOTANTE ---
+        st.divider()
+        with st.container():
+            st.markdown(f"### 🚩 Reportar Novedad sobre el cierre `{id_afectado}`")
+            st.caption(f"Estás reportando el cierre del **{fecha_afectada}** en **{estacionamiento_afectado}**.")
+            
+            with st.form("form_reporte", clear_on_submit=True):
+                col_tipo, col_texto = st.columns([1, 2])
+                
+                with col_tipo:
+                    tipo_solicitud = st.selectbox(
+                        "Tipo de Solicitud", 
+                        ["Solicitar Corrección", "Solicitar Eliminación"]
+                    )
+                
+                with col_texto:
+                    comentario = st.text_area(
+                        "Detalle del problema",
+                        placeholder="Ej: El valor consignado es $50.000, no $500.000..."
+                    )
+                
+                submitted = st.form_submit_button("Enviar Reporte 📤", use_container_width=True)
+                
+                if submitted:
+                    if not comentario:
+                        st.warning("Por favor escribe un comentario detallando el problema.")
+                    else:
+                        # Guardar en BD
+                        exito = save_report(id_afectado, tipo_solicitud, comentario)
+                        if exito:
+                            st.success("✅ Reporte enviado correctamente al equipo administrativo.")
+                            time.sleep(2) # Dar tiempo para leer antes de recargar
+                            st.rerun()
+
 else:
     st.warning("No se encontraron registros con los filtros aplicados.")
